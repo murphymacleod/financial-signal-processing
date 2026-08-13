@@ -68,6 +68,12 @@ def filter_lag(signal, filtered, max_lag: int = 100) -> int:
     (≥ 0) at which the cross-correlation of signal and filtered output is
     maximised.  Returns 0 if the peak is at zero offset or no data.
 
+    Note: this estimator assumes a roughly stationary signal with a decaying
+    autocorrelation. On strongly trending / near-unit-root series (e.g. raw
+    price levels), the autocorrelation stays high across many lags and the
+    peak becomes unreliable — prefer running this on a detrended or
+    differenced series (e.g. returns) in that case.
+
     Parameters
     ----------
     signal   : reference series (e.g. raw price)
@@ -79,8 +85,10 @@ def filter_lag(signal, filtered, max_lag: int = 100) -> int:
         return 0
     s = s - s.mean()
     f = f - f.mean()
-    # mode="full" returns a vector of length 2N-1; zero-lag is at index N-1
-    corr   = np.correlate(s, f, mode="full")
+    # mode="full" returns a vector of length 2N-1; zero-lag is at index N-1.
+    # correlate(f, s)[center+k] = sum_n f[n+k]*s[n], which peaks at k = +L
+    # when filtered trails signal by L samples (filtered[n] ~= signal[n-L]).
+    corr   = np.correlate(f, s, mode="full")
     center = len(s) - 1
     end    = min(center + max_lag + 1, len(corr))
     window = corr[center:end]

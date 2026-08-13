@@ -37,6 +37,7 @@ or mutates another stage's output, so any script can be re-run independently.
 
 | File | Role |
 |---|---|
+| [`common.py`](common.py) | Shared asset universe, CSV loader, and plot-axis helper used by every script below — no other file redefines these. |
 | [`download_data.py`](download_data.py) | Pulls 2020–present daily OHLCV for SPY, QQQ, GLD, USO, CPER from Yahoo Finance; validates monotonic dates and missing-data rate. |
 | [`plot_data.py`](plot_data.py) | Normalized cross-asset performance and per-asset price panels. |
 | [`compute_metrics.py`](compute_metrics.py) | Moving averages, daily returns, 30-day rolling annualized volatility. |

@@ -16,7 +16,8 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 
-from common import ASSETS, COLORS, DATA_DIR, FIGURES_DIR, apply_date_axis, load_asset, pick_asset
+from common import (ASSETS, COLORS, DATA_DIR, FIGURES_DIR, apply_date_axis,
+                    load_asset, resolve_ticker, ticker_arg_parser)
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
@@ -340,7 +341,10 @@ def plot_fir_vs_iir(
 # ── Entry Point ────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    ticker, description = pick_asset()
+    args = ticker_arg_parser(
+        "FIR and IIR filter design (SMA/WMA/EMA/Butterworth) for one asset."
+    ).parse_args()
+    ticker, description = resolve_ticker(args.ticker)
 
     df = load_asset(ticker, DATA_DIR)
     if df is None:

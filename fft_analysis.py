@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from common import ASSETS, COLORS, DATA_DIR, FIGURES_DIR, apply_date_axis, load_asset, pick_asset
+from common import (ASSETS, COLORS, DATA_DIR, FIGURES_DIR, apply_date_axis,
+                    load_asset, resolve_ticker, ticker_arg_parser)
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
@@ -269,6 +270,12 @@ def plot_asset_comparison(
 # ── Entry Point ────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    args = ticker_arg_parser(
+        "FFT spectral analysis (synthetic validation, returns spectrum, "
+        "windowing comparison, multi-asset comparison) for one asset."
+    ).parse_args()
+    ticker, description = resolve_ticker(args.ticker)
+
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
     # ── [1/4] Synthetic validation (no user input) ─────────────────────────────
@@ -280,7 +287,6 @@ def main() -> None:
     print(f"  Saved: {path1}")
 
     # ── [2/4] & [3/4] Single-asset analyses ───────────────────────────────────
-    ticker, description = pick_asset()
     df = load_asset(ticker, DATA_DIR)
     if df is None:
         return

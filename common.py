@@ -6,6 +6,7 @@ loads the same CSVs with the same yfinance header quirk; this is the one place
 that logic lives instead of five near-identical copies.
 """
 
+import argparse
 import os
 
 import matplotlib.dates as mdates
@@ -48,6 +49,44 @@ def pick_asset() -> tuple[str, str]:
             return raw, ASSETS[raw]
         else:
             print(f"  '{raw}' not recognised. Try a number (1–{len(tickers)}) or a ticker (e.g. SPY).")
+
+
+def ticker_arg_parser(description: str) -> argparse.ArgumentParser:
+    """
+    Build an ArgumentParser with one optional positional `ticker` argument,
+    shared by every script that lets the user pick a single asset. Passing
+    no argument falls back to the interactive picker (see resolve_ticker).
+    """
+    tickers = list(ASSETS.keys())
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument(
+        "ticker", nargs="?", default=None,
+        help=(f"Ticker to analyze ({', '.join(tickers)}), or its 1-{len(tickers)} "
+              "index. Omit to choose interactively."),
+    )
+    return parser
+
+
+def resolve_ticker(ticker: str | None) -> tuple[str, str]:
+    """
+    Resolve a ticker supplied on the command line (symbol or 1-based index),
+    or fall back to the interactive picker if none was given. Exits with a
+    clear error on an unrecognised value rather than raising a traceback.
+    """
+    if ticker is None:
+        return pick_asset()
+
+    tickers = list(ASSETS.keys())
+    raw = ticker.strip().upper()
+    if raw.isdigit():
+        idx = int(raw) - 1
+        if 0 <= idx < len(tickers):
+            t = tickers[idx]
+            return t, ASSETS[t]
+        raise SystemExit(f"Invalid index '{raw}'. Choose 1-{len(tickers)} or a ticker symbol.")
+    if raw in ASSETS:
+        return raw, ASSETS[raw]
+    raise SystemExit(f"Unknown ticker '{raw}'. Choose from: {', '.join(tickers)}")
 
 
 # ── Load ───────────────────────────────────────────────────────────────────────

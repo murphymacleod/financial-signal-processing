@@ -207,15 +207,17 @@ in this README.
 pip install -r requirements.txt
 python download_data.py       # fetch data/*.csv (Yahoo Finance)
 python plot_data.py           # figures/normalized_prices.png, individual_prices.png
-python compute_metrics.py     # prompts for a ticker → figures/{TICKER}_metrics.png
-python filters.py             # prompts for a ticker → FIR/IIR figures
-python fft_analysis.py        # prompts for a ticker → FFT/windowing figures
+python compute_metrics.py SPY # or omit the ticker to choose interactively
+python filters.py SPY         # FIR/IIR figures
+python fft_analysis.py SPY    # FFT/windowing figures
 python kalman_filter.py       # runs built-in sanity checks against synthetic data
 python backtest.py            # out-of-sample backtest → figures/backtest_*.png
 ```
 
-`compute_metrics.py`, `filters.py`, and `fft_analysis.py` prompt interactively
-for a ticker (1–5 or symbol). The Kalman filter is explored in
+`compute_metrics.py`, `filters.py`, and `fft_analysis.py` take an optional
+ticker argument — a symbol (`SPY`) or its 1–5 index into the asset list; `--help`
+on any of them prints the full option. Omit the argument to fall back to the
+original interactive picker. The Kalman filter is explored in
 [`notebooks/`](notebooks/) rather than as a standalone script — start with
 `kalman_synthetic_test.ipynb`.
 

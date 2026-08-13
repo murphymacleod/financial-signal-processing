@@ -29,11 +29,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from filters import ASSETS, DATA_DIR, load_asset
+from common import ASSETS, COLORS, DATA_DIR, FIGURES_DIR, load_asset
 from kalman_filter import KalmanFilter2D
-
-FIGURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
-COLORS = ["#2196F3", "#FF5722", "#4CAF50", "#9C27B0", "#FF9800"]
 
 TRAIN_END  = "2022-12-31"   # Q/R estimated only on data up to and including this date
 TEST_START = "2023-01-01"   # performance is measured only from this date onward

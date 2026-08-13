@@ -11,25 +11,14 @@ No data is downloaded here; only saved CSVs are consumed.
 
 import os
 
-import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import signal
 
+from common import ASSETS, COLORS, DATA_DIR, FIGURES_DIR, apply_date_axis, load_asset, pick_asset
+
 # ── Configuration ──────────────────────────────────────────────────────────────
-
-ASSETS = {
-    "SPY":  "S&P 500 ETF (Equity Index)",
-    "QQQ":  "Nasdaq-100 ETF (Technology)",
-    "GLD":  "SPDR Gold Shares (Gold)",
-    "USO":  "United States Oil Fund (Oil)",
-    "CPER": "United States Copper Index Fund (Copper)",
-}
-
-DATA_DIR    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-FIGURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
-COLORS      = ["#2196F3", "#FF5722", "#4CAF50", "#9C27B0", "#FF9800"]
 
 MA_ORDER       = 50   # M for SMA and WMA (number of points); EMA span; Butterworth LP/HP cutoff
 BP_LOW_PERIOD  = 40   # bandpass: reject periods longer than this (days)
@@ -37,48 +26,6 @@ BP_HIGH_PERIOD = 10   # bandpass: reject periods shorter than this (days)
 BP_NUMTAPS     = 101  # FIR bandpass filter length (must be odd for firwin bandpass)
 BUTTER_ORDER   = 4    # Butterworth filter order (4th-order: steep roll-off, numerically stable)
 FREQ_RESP_NPTS = 4096 # number of evaluation points for freqz frequency response
-
-
-# ── Asset Selection ────────────────────────────────────────────────────────────
-
-def pick_asset() -> tuple[str, str]:
-    """Prompt the user to select an asset. Returns (ticker, description)."""
-    tickers = list(ASSETS.keys())
-
-    print("\nAvailable assets:")
-    for i, (ticker, desc) in enumerate(ASSETS.items(), start=1):
-        print(f"  {i}. {ticker:<6} — {desc}")
-    print()
-
-    while True:
-        raw = input("Enter number or ticker symbol: ").strip().upper()
-        if raw.isdigit():
-            idx = int(raw) - 1
-            if 0 <= idx < len(tickers):
-                ticker = tickers[idx]
-                return ticker, ASSETS[ticker]
-            print(f"  Please enter a number between 1 and {len(tickers)}.")
-        elif raw in ASSETS:
-            return raw, ASSETS[raw]
-        else:
-            print(f"  '{raw}' not recognised. Try a number (1–{len(tickers)}) or a ticker (e.g. SPY).")
-
-
-# ── Load ───────────────────────────────────────────────────────────────────────
-
-def load_asset(ticker: str, data_dir: str) -> pd.DataFrame | None:
-    """Load a single asset's CSV. Returns None if the file is missing."""
-    path = os.path.join(data_dir, f"{ticker}.csv")
-    if not os.path.exists(path):
-        print(f"  [ERROR] {path} not found. Run download_data.py first.")
-        return None
-    # Newer yfinance writes a 3-row header (Price / Ticker / Date); detect and skip.
-    with open(path) as f:
-        f.readline()
-        second_line = f.readline()
-    skip = [1, 2] if second_line.strip().startswith("Ticker") else []
-    return pd.read_csv(path, skiprows=skip, index_col=0,
-                       parse_dates=True, date_format="%Y-%m-%d")
 
 
 # ── FIR Filter Computations ────────────────────────────────────────────────────
@@ -166,12 +113,6 @@ def compute_freq_response(
 
 # ── Plotting ───────────────────────────────────────────────────────────────────
 
-def _apply_date_axis(ax: plt.Axes) -> None:
-    """Year-tick x-axis formatting, matching project-wide style."""
-    ax.xaxis.set_major_locator(mdates.YearLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    ax.tick_params(axis="x", rotation=0)
-
 
 def plot_fir_filters(
     price: pd.Series,
@@ -236,7 +177,7 @@ def plot_fir_filters(
                   fontsize=10)
     ax3.set_ylabel(f"Bandpass ({bp_high}–{bp_low} day)")
     ax3.grid(True, alpha=0.3)
-    _apply_date_axis(ax3)
+    apply_date_axis(ax3)
 
     fig.tight_layout()
     return fig
@@ -307,7 +248,7 @@ def plot_iir_filters(
     )
     ax3.set_ylabel(f"Bandpass ({bp_high}–{bp_low} day)")
     ax3.grid(True, alpha=0.3)
-    _apply_date_axis(ax3)
+    apply_date_axis(ax3)
 
     fig.tight_layout()
     return fig
@@ -355,7 +296,7 @@ def plot_fir_vs_iir(
     ax1.set_ylabel("Close Price (USD)")
     ax1.legend(loc="upper left", framealpha=0.9, fontsize=8)
     ax1.grid(True, alpha=0.3)
-    _apply_date_axis(ax1)
+    apply_date_axis(ax1)
 
     # ── Frequency responses ───────────────────────────────────────────────────
     p_sma, mag_sma, ph_sma = compute_freq_response(b_sma, 1,     FREQ_RESP_NPTS)

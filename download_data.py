@@ -11,20 +11,13 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
-# ── Configuration ──────────────────────────────────────────────────────────────
+from common import ASSETS, DATA_DIR
 
-ASSETS = {
-    "SPY":  "S&P 500 ETF (Equity Index)",
-    "QQQ":  "Nasdaq-100 ETF (Technology)",
-    "GLD":  "SPDR Gold Shares (Gold)",
-    "USO":  "United States Oil Fund (Oil)",
-    "CPER": "United States Copper Index Fund (Copper)",
-}
+# ── Configuration ──────────────────────────────────────────────────────────────
 
 START_DATE = "2020-01-01"
 END_DATE   = datetime.today().strftime("%Y-%m-%d")
 INTERVAL   = "1d"
-DATA_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 
 # ── Core Functions ─────────────────────────────────────────────────────────────

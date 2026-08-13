@@ -8,24 +8,14 @@ returns, and volatility. No data is downloaded here; only saved CSVs are consume
 
 import os
 
-import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from common import ASSETS, COLORS, DATA_DIR, FIGURES_DIR, apply_date_axis, load_asset, pick_asset
+
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-ASSETS = {
-    "SPY":  "S&P 500 ETF (Equity Index)",
-    "QQQ":  "Nasdaq-100 ETF (Technology)",
-    "GLD":  "SPDR Gold Shares (Gold)",
-    "USO":  "United States Oil Fund (Oil)",
-    "CPER": "United States Copper Index Fund (Copper)",
-}
-
-DATA_DIR       = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-FIGURES_DIR    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
-COLORS         = ["#2196F3", "#FF5722", "#4CAF50", "#9C27B0", "#FF9800"]
 ROLLING_WINDOW = 30
 
 # Moving-average colors: one neutral hue family so they read as
@@ -35,48 +25,6 @@ MA_COLORS = {
     "MA50":  "#757575",  # mid gray    — medium-term
     "MA200": "#37474F",  # dark blue-gray — long-term
 }
-
-
-# ── Asset Selection ────────────────────────────────────────────────────────────
-
-def pick_asset() -> tuple[str, str]:
-    """Prompt the user to select an asset. Returns (ticker, description)."""
-    tickers = list(ASSETS.keys())
-
-    print("\nAvailable assets:")
-    for i, (ticker, desc) in enumerate(ASSETS.items(), start=1):
-        print(f"  {i}. {ticker:<6} — {desc}")
-    print()
-
-    while True:
-        raw = input("Enter number or ticker symbol: ").strip().upper()
-        if raw.isdigit():
-            idx = int(raw) - 1
-            if 0 <= idx < len(tickers):
-                ticker = tickers[idx]
-                return ticker, ASSETS[ticker]
-            print(f"  Please enter a number between 1 and {len(tickers)}.")
-        elif raw in ASSETS:
-            return raw, ASSETS[raw]
-        else:
-            print(f"  '{raw}' not recognised. Try a number (1–{len(tickers)}) or a ticker (e.g. SPY).")
-
-
-# ── Load ───────────────────────────────────────────────────────────────────────
-
-def load_asset(ticker: str, data_dir: str) -> pd.DataFrame | None:
-    """Load a single asset's CSV. Returns None if the file is missing."""
-    path = os.path.join(data_dir, f"{ticker}.csv")
-    if not os.path.exists(path):
-        print(f"  [ERROR] {path} not found. Run download_data.py first.")
-        return None
-    # Newer yfinance writes a 3-row header (Price / Ticker / Date); detect and skip.
-    with open(path) as f:
-        f.readline()
-        second_line = f.readline()
-    skip = [1, 2] if second_line.strip().startswith("Ticker") else []
-    return pd.read_csv(path, skiprows=skip, index_col=0,
-                       parse_dates=True, date_format="%Y-%m-%d")
 
 
 # ── Metrics ────────────────────────────────────────────────────────────────────
@@ -97,12 +45,6 @@ def compute_metrics(df: pd.DataFrame, window: int = 30) -> pd.DataFrame:
 
 
 # ── Plotting ───────────────────────────────────────────────────────────────────
-
-def _apply_date_axis(ax: plt.Axes) -> None:
-    """Year-tick x-axis, matching plot_data.py style."""
-    ax.xaxis.set_major_locator(mdates.YearLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    ax.tick_params(axis="x", rotation=0)
 
 
 def plot_metrics(metrics: pd.DataFrame, ticker: str, description: str,
@@ -150,7 +92,7 @@ def plot_metrics(metrics: pd.DataFrame, ticker: str, description: str,
     ax3.set_ylabel(f"{window}-Day Vol (Ann.)")
     ax3.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.0%}"))
     ax3.grid(True, alpha=0.3)
-    _apply_date_axis(ax3)  # bottom panel only; sharex propagates ticks upward
+    apply_date_axis(ax3)  # bottom panel only; sharex propagates ticks upward
 
     fig.tight_layout()
     return fig

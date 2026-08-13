@@ -5,23 +5,10 @@ Loads saved CSVs and produces clear price charts. No analysis is performed here.
 
 import os
 
-import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# ── Configuration ──────────────────────────────────────────────────────────────
-
-ASSETS = {
-    "SPY":  "S&P 500 ETF",
-    "QQQ":  "Nasdaq-100 ETF",
-    "GLD":  "SPDR Gold Shares",
-    "USO":  "US Oil Fund",
-    "CPER": "US Copper Index Fund",
-}
-
-DATA_DIR    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-FIGURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
-COLORS      = ["#2196F3", "#FF5722", "#4CAF50", "#9C27B0", "#FF9800"]
+from common import ASSETS, COLORS, DATA_DIR, FIGURES_DIR, apply_date_axis, load_asset
 
 
 # ── Load ───────────────────────────────────────────────────────────────────────
@@ -30,29 +17,10 @@ def load_all(data_dir: str, tickers: list[str]) -> dict[str, pd.DataFrame]:
     """Load a CSV for each ticker. Missing files are skipped with a warning."""
     data = {}
     for ticker in tickers:
-        path = os.path.join(data_dir, f"{ticker}.csv")
-        if not os.path.exists(path):
-            print(f"  [WARN] {ticker}: file not found at {path}, skipping.")
-            continue
-        # Newer yfinance writes a 3-row header (Price / Ticker / Date);
-        # peek at the second line to detect and skip those metadata rows.
-        with open(path) as f:
-            f.readline()
-            second_line = f.readline()
-        skip = [1, 2] if second_line.strip().startswith("Ticker") else []
-        df = pd.read_csv(path, skiprows=skip, index_col=0,
-                         parse_dates=True, date_format="%Y-%m-%d")
-        data[ticker] = df
+        df = load_asset(ticker, data_dir)
+        if df is not None:
+            data[ticker] = df
     return data
-
-
-# ── Plot Functions ─────────────────────────────────────────────────────────────
-
-def _apply_date_axis(ax: plt.Axes) -> None:
-    """Apply consistent year-tick formatting to an x-axis."""
-    ax.xaxis.set_major_locator(mdates.YearLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-    ax.tick_params(axis="x", rotation=0)
 
 
 def plot_normalized_prices(data: dict, colors: list) -> plt.Figure:
@@ -72,7 +40,7 @@ def plot_normalized_prices(data: dict, colors: list) -> plt.Figure:
     ax.set_ylabel("Index (Base = 100)")
     ax.legend(loc="upper left", framealpha=0.9, fontsize=9)
     ax.grid(True, alpha=0.3)
-    _apply_date_axis(ax)
+    apply_date_axis(ax)
     fig.tight_layout()
     return fig
 
@@ -91,7 +59,7 @@ def plot_individual_prices(data: dict, colors: list) -> plt.Figure:
         ax.set_title(f"{ticker} — {ASSETS[ticker]}", fontsize=11)
         ax.set_ylabel("Close Price (USD)")
         ax.grid(True, alpha=0.3)
-        _apply_date_axis(ax)
+        apply_date_axis(ax)
 
     # Hide the unused 6th panel
     axes[2][1].set_visible(False)

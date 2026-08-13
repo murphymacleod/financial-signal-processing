@@ -29,6 +29,7 @@ download_data.py  →  data/*.csv  →  plot_data.py        → figures/  (raw p
                                   →  fft_analysis.py       → figures/  (spectral analysis)
                                   →  kalman_filter.py      → notebooks/ (from-scratch Kalman)
                                   →  metrics.py            → quantitative filter comparison
+                                  →  backtest.py           → figures/  (out-of-sample signal check)
 ```
 
 Each stage only reads the CSVs `download_data.py` produces — no stage re-fetches
@@ -43,6 +44,7 @@ or mutates another stage's output, so any script can be re-run independently.
 | [`fft_analysis.py`](fft_analysis.py) | FFT validated on a synthetic two-tone signal first, then applied to log returns; windowing/spectral-leakage comparison; multi-asset spectral comparison. |
 | [`kalman_filter.py`](kalman_filter.py) | `KalmanFilter1D` (price as a random walk) and `KalmanFilter2D` (price + local trend/velocity), written from the predict/update equations directly — no `pykalman`/`filterpy`. |
 | [`metrics.py`](metrics.py) | RMSE, MAE, noise reduction (dB), tracking error, and cross-correlation-based lag — pure functions used to compare every filter above on equal footing. |
+| [`backtest.py`](backtest.py) | Turns the Kalman 2D trend sign into a long/flat rule and evaluates it strictly out-of-sample (Q/R fit on 2020–2022 only, performance measured 2023-01-01 onward), net of a flat transaction cost. |
 | [`notebooks/`](notebooks/) | `kalman_synthetic_test`, `kalman_market_analysis`, `filter_comparison` — Q/R sensitivity, 1D vs 2D Kalman, and a head-to-head of all six filters. |
 
 ## Key findings
@@ -152,6 +154,52 @@ USO is running at ~1.6x its historical average volatility; SPY is currently
 below its historical average — both consistent with oil's structurally higher
 vol-of-vol relative to a broad equity index.
 
+### 6. Does the trend signal actually carry information? An honest out-of-sample check
+
+Every prior section characterizes filtered signals; it doesn't say whether they're
+worth anything. [`backtest.py`](backtest.py) closes that loop as narrowly and
+honestly as possible: `KalmanFilter2D`'s Q/R are fit on 2020–2022 data only, the
+filter then runs causally and continuously across the full series (as a live
+system would — nothing resets at the test boundary), and a simple long/flat rule
+(hold the asset when yesterday's trend estimate was positive, else hold cash, 5 bps
+cost per position change) is scored **only** on 2023-01-01 onward — data the
+parameter fit never saw.
+
+| Asset | Strategy Sharpe | Buy&Hold Sharpe | Strategy CAGR | Buy&Hold CAGR | Strategy MaxDD | Buy&Hold MaxDD | Trades |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| SPY | 1.22 | 1.44 | 15.1% | 22.9% | -10.7% | -18.8% | 7 |
+| QQQ | 1.11 | 1.48 | 19.3% | 32.2% | -14.0% | -22.8% | 5 |
+| GLD | 1.24 | 1.20 | 24.1% | 24.4% | -21.2% | -26.4% | 5 |
+| USO | 0.25 | 0.64 | 3.2% | 18.1% | -40.7% | -32.5% | 11 |
+| CPER | 0.28 | 0.71 | 3.8% | 16.8% | -31.9% | -24.8% | 10 |
+
+**Read the losses, not just the wins** — this is the actual result, not a cherry-picked one:
+
+- On four of five assets the strategy underperforms plain buy-and-hold on both
+  Sharpe and CAGR. That's the expected cost of a long/flat rule during a
+  persistent bull run (2023–2026 across every asset here): going to cash even a
+  handful of times means missing some of the best up days, and 5–11 trades over
+  ~3.6 years means the filter mostly just sat long anyway.
+- Where it's genuinely doing something is **drawdown, on the trending assets**:
+  SPY, QQQ, and GLD all see materially smaller max drawdowns under the strategy
+  (e.g. SPY -10.7% vs. -18.8%) — a real, if modest, risk-reduction property, not
+  a return-enhancement one.
+- That property **breaks down on the choppier commodity assets**: USO and CPER
+  end up with *worse* Sharpe *and* worse drawdown than buy-and-hold. The most
+  likely explanation is that a 2-state constant-velocity Kalman model is a poor
+  fit for oil/copper's noisier, less trend-persistent dynamics — but with only
+  5 assets and one train/test split, that's a hypothesis worth testing further,
+  not a conclusion.
+
+None of this is presented as a trading strategy. It's one train/test split, one
+hyperparameter choice, no walk-forward re-fitting, and a flat cost assumption —
+enough to honestly answer "does this signal contain any information," not enough
+to fund anything on. Overclaiming here would undercut every other honest number
+in this README.
+
+![SPY out-of-sample equity curve](figures/backtest_spy_equity.png)
+![Out-of-sample Sharpe, all assets](figures/backtest_sharpe_comparison.png)
+
 ## Installation & usage
 
 ```bash
@@ -162,6 +210,7 @@ python compute_metrics.py     # prompts for a ticker → figures/{TICKER}_metric
 python filters.py             # prompts for a ticker → FIR/IIR figures
 python fft_analysis.py        # prompts for a ticker → FFT/windowing figures
 python kalman_filter.py       # runs built-in sanity checks against synthetic data
+python backtest.py            # out-of-sample backtest → figures/backtest_*.png
 ```
 
 `compute_metrics.py`, `filters.py`, and `fft_analysis.py` prompt interactively
@@ -171,10 +220,14 @@ for a ticker (1–5 or symbol). The Kalman filter is explored in
 
 ## Limitations & honest caveats
 
-- **In-sample only.** Filter parameters (M = 50, Butterworth order 4, Kalman Q/R)
-  are fixed and were not selected via any out-of-sample or walk-forward
-  procedure. Nothing here claims predictive power — it's signal decomposition,
-  not a trading strategy.
+- **Mostly in-sample, with one deliberate exception.** Filter parameters
+  elsewhere in the project (M = 50, Butterworth order 4) are fixed and not
+  selected via any out-of-sample procedure — those sections are signal
+  decomposition, not a predictive claim. `backtest.py` is the one place that
+  evaluates out-of-sample (see [finding #6](#6-does-the-trend-signal-actually-carry-information-an-honest-out-of-sample-check)),
+  but on a single train/test split with a single hyperparameter choice — not
+  enough rigor to call it a validated strategy, just enough to answer whether
+  the signal contains information at all.
 - **No causal/acausal mixing in the headline figures.** The FIR/IIR overview
   figures use `filtfilt` (zero-phase) for visual clarity; the "6 filters" and
   "FIR vs IIR" figures switch to causal-only implementations specifically to

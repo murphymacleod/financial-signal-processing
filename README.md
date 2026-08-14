@@ -1,5 +1,7 @@
 # Financial Signal Processing Platform
 
+[![Tests](https://github.com/murphymacleod/financial-signal-processing/actions/workflows/tests.yml/badge.svg)](https://github.com/murphymacleod/financial-signal-processing/actions/workflows/tests.yml)
+
 Applies classical and adaptive digital signal processing — FIR/IIR filter design,
 FFT spectral analysis, and a from-scratch Kalman filter — to five years of daily
 OHLCV data across five asset classes, in order to separate trend from noise and
@@ -47,6 +49,7 @@ or mutates another stage's output, so any script can be re-run independently.
 | [`metrics.py`](metrics.py) | RMSE, MAE, noise reduction (dB), tracking error, and cross-correlation-based lag — pure functions used to compare every filter above on equal footing. |
 | [`backtest.py`](backtest.py) | Turns the Kalman 2D trend sign into a long/flat rule and evaluates it strictly out-of-sample (Q/R fit on 2020–2022 only, performance measured 2023-01-01 onward), net of a flat transaction cost. |
 | [`notebooks/`](notebooks/) | `kalman_synthetic_test`, `kalman_market_analysis`, `filter_comparison` — Q/R sensitivity, 1D vs 2D Kalman, and a head-to-head of all six filters. |
+| [`tests/`](tests/) | 55 tests covering every module above — see [Testing](#testing). |
 
 ## Key findings
 
@@ -221,6 +224,22 @@ original interactive picker. The Kalman filter is explored in
 [`notebooks/`](notebooks/) rather than as a standalone script — start with
 `kalman_synthetic_test.ipynb`.
 
+## Testing
+
+```bash
+pip install -r requirements-dev.txt
+pytest -v
+```
+
+55 tests across [`tests/`](tests/) cover the pure computational core: filter
+correctness (SMA/WMA/EMA/Butterworth properties like DC rejection and constant-
+input behavior), Kalman filter convergence, FFT frequency recovery on a
+synthetic signal, backtest metrics (Sharpe/CAGR/drawdown against hand-computed
+values), and — the one that matters most — a regression test that `run_backtest`
+never lets a day's position depend on that same day's trend estimate. No test
+hits the network; `download_data.py`'s validation logic is tested directly, not
+`download_asset()` itself. Runs in CI (see badge above) on Python 3.11 and 3.12.
+
 ## Limitations & honest caveats
 
 - **Mostly in-sample, with one deliberate exception.** Filter parameters
@@ -246,7 +265,8 @@ original interactive picker. The Kalman filter is explored in
 ## Requirements
 
 Python 3.10+, see [`requirements.txt`](requirements.txt) (yfinance, pandas,
-numpy, scipy, matplotlib).
+numpy, scipy, matplotlib). Add `requirements-dev.txt` (pytest) to run the
+test suite.
 
 ## License
 
